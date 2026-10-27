@@ -8,6 +8,7 @@
     "build": "vite build",
     "start": "vite build && electron .",
     "setup": "vite build && electron . --setup",
+    "start:cdp": "vite build && electron . --user-data-dir=\"${TMPDIR:-/tmp}/herdr-bot-cdp-${CDP_PORT:-9333}\" --remote-debugging-port=${CDP_PORT:-9333}",
     "typecheck": "tsc -p app"
   },
   "devDependencies": {

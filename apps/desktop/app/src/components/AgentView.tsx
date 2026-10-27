@@ -4,6 +4,7 @@ import { type Api, useOutput, useTranscript } from "../api";
 import { kindLabel, machineLabel, shortPath, STATUS_LABEL } from "../util";
 import { Chat } from "./Chat";
 import { Composer } from "./Composer";
+import { Terminal } from "./Terminal";
 
 interface Props {
   api: Api;
@@ -13,7 +14,7 @@ interface Props {
 
 const NO_CHAT_REASON: Record<string, (agent: AgentInfo, machine: string) => string> = {
   no_session: (a, m) =>
-    `The Herdr hook for ${kindLabel(a.kind)} is not installed on ${m}, so HerdrBot can't find this conversation. Showing the terminal instead. Add the hook in Setup on ${m}.`,
+    `HerdrBot can't find this conversation, because Herdr has no session id for it. Showing the terminal instead. The Herdr hook for ${kindLabel(a.kind)} sends the id when a session starts: install it in Setup on ${m}, then restart the agent.`,
   unsupported_agent: (a) => `Chat view is not available for ${kindLabel(a.kind)} yet. Showing the terminal instead.`,
   file_not_found: () => "HerdrBot can't find this conversation's file. Showing the terminal instead.",
 };
@@ -98,7 +99,7 @@ export function AgentView({ api, state, agent }: Props) {
       )}
 
       {showTerminal ? (
-        <pre className="terminal">{terminal ?? "Loading…"}</pre>
+        <Terminal key={agent.id} text={terminal} />
       ) : (
         <Chat agent={agent} items={transcript.items} truncated={transcript.truncated} />
       )}
@@ -106,7 +107,7 @@ export function AgentView({ api, state, agent }: Props) {
       {agent.status === "blocked" && (
         <div className="banner blocked">
           <div className="banner-title">{kindLabel(agent.kind)} needs your answer</div>
-          {!showTerminal && blockedSnippet && <pre className="snippet">{lastLines(blockedSnippet, 14)}</pre>}
+          {!showTerminal && blockedSnippet && <Terminal className="snippet" text={lastLines(blockedSnippet, 14)} />}
           <div className="choice-keys">
             <button onClick={() => keys(["1"])}>1</button>
             <button onClick={() => keys(["2"])}>2</button>

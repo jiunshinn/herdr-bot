@@ -92,7 +92,9 @@ shows the question with answer buttons. The Terminal tab shows the raw pane.
 
 Chat needs the agent's Herdr hook, which reports its session id; HerdrBot then reads the
 agent's own session file (Claude Code: `~/.claude/projects`, Codex: `~/.codex/sessions`).
-Without the hook the app shows the terminal.
+The hook reports the id only when a session starts. For a Claude Code agent that started before
+the hook, HerdrBot finds the id in `~/.claude/sessions/<pid>.json`, matched to the pane by the
+`HERDR_PANE_ID` in the agent's environment. Without a session id the app shows the terminal.
 
 ## API
 

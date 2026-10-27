@@ -28,9 +28,10 @@ export async function readTranscript(
   after: number | null,
   clientSession: string | null,
 ): Promise<TranscriptResponse> {
+  let sessionId = agent.sessionId;
   const empty = (reason: string): TranscriptResponse => ({
     source: null,
-    sessionId: agent.sessionId,
+    sessionId,
     items: [],
     cursor: 0,
     reset: true,
@@ -40,19 +41,20 @@ export async function readTranscript(
 
   const source: Source | null = agent.kind === "claude" ? "claude" : agent.kind === "codex" ? "codex" : null;
   if (!source) return empty("unsupported_agent");
-  if (!agent.sessionId) return empty("no_session");
+  if (!sessionId && source === "claude") sessionId = await claudePaneSession(machine, agent.paneId);
+  if (!sessionId) return empty("no_session");
   // The id goes into a shell command for remote machines.
-  if (!/^[A-Za-z0-9-]+$/.test(agent.sessionId)) return empty("bad_session");
+  if (!/^[A-Za-z0-9-]+$/.test(sessionId)) return empty("bad_session");
 
-  const key = `${machine.id}|${agent.sessionId}`;
+  const key = `${machine.id}|${sessionId}`;
   let path = located.get(key);
   if (!path) {
-    path = (await locate(machine, source, agent.sessionId)) ?? undefined;
+    path = (await locate(machine, source, sessionId)) ?? undefined;
     if (!path) return empty("file_not_found");
     located.set(key, path);
   }
 
-  const reset = after === null || clientSession !== agent.sessionId;
+  const reset = after === null || clientSession !== sessionId;
   const chunk = await readChunk(machine, path, reset ? null : after);
   if (!chunk) {
     located.delete(key);
@@ -76,7 +78,7 @@ export async function readTranscript(
   const items = parse(source, complete, start);
   return {
     source,
-    sessionId: agent.sessionId,
+    sessionId,
     items,
     cursor: start + complete.length,
     reset,
@@ -85,6 +87,71 @@ export async function readTranscript(
 }
 
 // ── Finding and reading the file ──────────────────────
+
+// Herdr's hook reports the session id only when a session starts, so a Claude Code agent that
+// started before the hook was installed has none. Claude Code also keeps
+// ~/.claude/sessions/<pid>.json with its live session id, and its process inherits the pane's
+// HERDR_PANE_ID: together they map each pane to its session. Prints "<pane>\t<start>\t<json>".
+const CLAUDE_PANES_SCRIPT = `
+for f in "$HOME"/.claude/sessions/*.json; do
+  [ -f "$f" ] || continue
+  pid=$(basename "$f" .json)
+  case "$pid" in ''|*[!0-9]*) continue ;; esac
+  if [ -r "/proc/$pid/environ" ]; then
+    pane=$(tr '\\0' '\\n' < "/proc/$pid/environ" | sed -n 's/^HERDR_PANE_ID=//p' | tail -1)
+  else
+    pane=$(ps -E -ww -o command= -p "$pid" 2>/dev/null | tr ' ' '\\n' | sed -n 's/^HERDR_PANE_ID=//p' | tail -1)
+  fi
+  [ -n "$pane" ] || continue
+  start=$(TZ=UTC LC_ALL=C ps -o lstart= -p "$pid" 2>/dev/null)
+  printf '%s\\t%s\\t%s\\n' "$pane" "$start" "$(tr -d '\\n' < "$f")"
+done
+true`;
+
+const CLAUDE_PANES_TTL_MS = 10_000;
+const claudePanes = new Map<string, { at: number; panes: Promise<Map<string, string>> }>();
+
+async function claudePaneSession(machine: Machine, paneId: string): Promise<string | null> {
+  let entry = claudePanes.get(machine.id);
+  if (!entry || Date.now() - entry.at > CLAUDE_PANES_TTL_MS) {
+    entry = { at: Date.now(), panes: scanClaudePanes(machine) };
+    claudePanes.set(machine.id, entry);
+  }
+  return (await entry.panes).get(paneId) ?? null;
+}
+
+async function scanClaudePanes(machine: Machine): Promise<Map<string, string>> {
+  let out = "";
+  try {
+    if (machine.remote) {
+      if (machine.target) out = new TextDecoder().decode((await sshRun(machine.target, CLAUDE_PANES_SCRIPT)).stdout);
+    } else {
+      const proc = Bun.spawn(["sh", "-c", CLAUDE_PANES_SCRIPT], { stdout: "pipe", stderr: "ignore", stdin: "ignore" });
+      out = await new Response(proc.stdout).text();
+    }
+  } catch {}
+
+  const same = (a: string, b: string) => a.replace(/\s+/g, " ").trim() === b.replace(/\s+/g, " ").trim();
+  const found = new Map<string, { sessionId: string; startedAt: number }>();
+  for (const line of out.split("\n")) {
+    const [pane, start, json] = line.split("\t");
+    if (!pane || !json) continue;
+    let s: any;
+    try {
+      s = JSON.parse(json);
+    } catch {
+      continue;
+    }
+    if (typeof s?.sessionId !== "string") continue;
+    // Skip `claude -p` runs inside the pane, and files of dead processes whose pid is in use again.
+    if (s.kind && s.kind !== "interactive") continue;
+    if (typeof s.procStart === "string" && start && !same(s.procStart, start)) continue;
+    const startedAt = Number(s.startedAt) || 0;
+    const prev = found.get(pane);
+    if (!prev || startedAt > prev.startedAt) found.set(pane, { sessionId: s.sessionId, startedAt });
+  }
+  return new Map([...found].map(([pane, s]) => [pane, s.sessionId]));
+}
 
 async function locate(machine: Machine, source: Source, sessionId: string): Promise<string | null> {
   if (machine.remote) {

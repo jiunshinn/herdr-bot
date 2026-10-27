@@ -181,7 +181,7 @@ export function useOutput(api: Api, agentId: string, lines: number, enabled = tr
       if (!document.hidden) {
         try {
           const { text } = await api.output(agentId, lines);
-          if (!stopped) setText(text.replace(/^[─━═]{8,}$/gm, "────────").replace(/\s+$/, ""));
+          if (!stopped) setText(text.replace(/\s+$/, ""));
         } catch {}
       }
       if (!stopped) timer = setTimeout(tick, 1500);

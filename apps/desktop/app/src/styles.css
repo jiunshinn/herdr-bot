@@ -435,6 +435,15 @@ button:disabled {
   user-select: text;
 }
 
+.term-line {
+  min-height: 1lh;
+}
+
+.term-rule {
+  height: 1lh;
+  background: linear-gradient(var(--faint), var(--faint)) center / 100% 1px no-repeat;
+}
+
 /* ── Chat ──────────────────────────────────────────── */
 
 .chat {

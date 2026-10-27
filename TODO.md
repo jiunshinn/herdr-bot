@@ -37,9 +37,11 @@ Tested on Ubuntu GNOME Wayland, running Electron under XWayland (`--ozone-platfo
 - [x] Chat from the agent's own session file (`/api/agent/transcript`): Claude Code and Codex.
       Tool calls grouped into "Worked · N steps" cards with input and output.
 - [x] Blocked banner with the terminal prompt and 1/2/3/Enter/Esc buttons; Terminal tab fallback.
-- [ ] Chat needs the agent's Herdr hook (it reports the session id). Without it, the app shows
-      the terminal. pro: Herdr 0.9.3 with Claude hook v10 reports no session ids yet; try
-      `herdr update` on pro.
+- [x] Chat for Claude Code agents that started before the Herdr hook: the hook reports the
+      session id only on `SessionStart`, so the server falls back to `~/.claude/sessions/<pid>.json`
+      plus the process's `HERDR_PANE_ID`. This is likely why pro reported no session ids.
+- [ ] Codex has no such session registry: a Codex agent that started before its hook still shows
+      the terminal.
 - [ ] Codex parsing is tested against a saved rollout file only, not a live Codex agent.
 - [ ] Chat for other agents (Antigravity, Gemini, opencode, ...): find their session files.
 - [ ] Click a notification to open that agent in the control center.

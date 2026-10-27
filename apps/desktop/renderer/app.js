@@ -90,7 +90,7 @@ function onStatus({ agent, from, to }) {
   if (from === null || (to !== "blocked" && to !== "done")) return;
   const machine = machineLabel(agent.machineId);
   const what = to === "blocked" ? "needs your input" : "finished";
-  window.drawer.notify(`${agent.title}`, `${machine} · ${agent.workspaceLabel} · ${what}`);
+  window.drawer.notify(`${agent.title}`, `${machine} · ${agent.workspaceLabel} · ${what}`, agent.id);
   document.body.style.setProperty("--peek-color", STATUS_COLOR[to]);
   document.body.classList.add("peek");
   clearTimeout(peekTimer);

@@ -13,6 +13,7 @@ contextBridge.exposeInMainWorld("drawer", {
   close: () => ipcRenderer.send("drawer:close"),
   /** Open the control-center window, optionally on one agent. */
   openApp: (agentId) => ipcRenderer.send("drawer:open-app", agentId),
-  notify: (title, body) => ipcRenderer.send("drawer:notify", { title, body }),
+  /** System notification; a click opens the agent in the control center. */
+  notify: (title, body, agentId) => ipcRenderer.send("drawer:notify", { title, body, agentId }),
   quit: () => ipcRenderer.send("drawer:quit"),
 });

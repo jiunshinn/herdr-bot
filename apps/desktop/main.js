@@ -19,6 +19,7 @@ const CLOSE_DELAY = 300;
 const TICK_MS = 1000 / 30;
 const TOGGLE_SHORTCUT = "CommandOrControl+Alt+H";
 const SHOW_PLACE_MS = 1800; // after a move, the drawer slides out this long to show where it went
+const MAX_NOTIFICATIONS = 20;
 
 let win;
 let isOpen = false;
@@ -29,6 +30,7 @@ let leftAt = null;
 let peekUntil = 0;
 let current; // layout(): where the window, the notch and the panel are
 let showPlaceTimer = null;
+const notifications = []; // shown notifications, so their click handlers stay alive
 
 function place() {
   current = layout();
@@ -138,8 +140,18 @@ ipcMain.on("drawer:peek", (_e, ms) => peek(Number(ms) || 5000));
 ipcMain.on("drawer:hold", (_e, on) => {
   holding = Boolean(on);
 });
-ipcMain.on("drawer:notify", (_e, { title, body }) => {
-  if (Notification.isSupported()) new Notification({ title, body, silent: false }).show();
+ipcMain.on("drawer:notify", (_e, { title, body, agentId }) => {
+  if (!Notification.isSupported()) return;
+  const notification = new Notification({ title, body, silent: false });
+  // A click opens the agent's chat in the control center.
+  notification.on("click", () => {
+    setOpen(false);
+    showControlCenter(typeof agentId === "string" ? agentId : undefined);
+  });
+  // A notification that is garbage collected loses its click handler, so keep the latest ones.
+  notifications.push(notification);
+  if (notifications.length > MAX_NOTIFICATIONS) notifications.shift();
+  notification.show();
 });
 ipcMain.on("drawer:close", () => setOpen(false));
 ipcMain.on("drawer:open-app", (_e, agentId) => {

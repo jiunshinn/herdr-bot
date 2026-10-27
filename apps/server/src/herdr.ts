@@ -101,6 +101,11 @@ export function readOutput(machine: Machine, paneId: string, lines: number): Pro
   return run(machine, ["agent", "read", paneId, "--source", "recent", "--lines", String(lines)]);
 }
 
+/** The visible screen. Unlike "recent", Herdr can read it while a full-screen agent works. */
+export function readScreen(machine: Machine, paneId: string): Promise<string> {
+  return run(machine, ["agent", "read", paneId, "--source", "visible"]);
+}
+
 export async function prompt(machine: Machine, paneId: string, text: string): Promise<void> {
   await run(machine, ["agent", "prompt", paneId, text]);
 }

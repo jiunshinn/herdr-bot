@@ -243,6 +243,14 @@ button:disabled {
   background: var(--raised);
 }
 
+.nav-home-icon {
+  width: 8px;
+  flex: none;
+  display: flex;
+  justify-content: center;
+  color: var(--muted);
+}
+
 .agent-row-main {
   flex: 1;
   min-width: 0;

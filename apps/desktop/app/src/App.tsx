@@ -15,7 +15,13 @@ export function App({ api }: { api: Api }) {
 
   return (
     <div className={`app platform-${api.platform}`}>
-      <Sidebar state={state} connected={connected} selectedId={selectedId} onSelect={setSelectedId} />
+      <Sidebar
+        state={state}
+        connected={connected}
+        selectedId={selectedId}
+        onSelect={setSelectedId}
+        overviewOpen={!agent}
+      />
       <main className="main">
         {agent ? (
           <AgentView key={agent.id} api={api} state={state} agent={agent} />

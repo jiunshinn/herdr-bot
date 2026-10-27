@@ -7,9 +7,10 @@ interface Props {
   connected: boolean;
   selectedId: string | null;
   onSelect(id: string | null): void;
+  overviewOpen: boolean;
 }
 
-export function Sidebar({ state, connected, selectedId, onSelect }: Props) {
+export function Sidebar({ state, connected, selectedId, onSelect, overviewOpen }: Props) {
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
@@ -46,6 +47,12 @@ export function Sidebar({ state, connected, selectedId, onSelect }: Props) {
         <input placeholder="Search agents" value={query} onChange={(e) => setQuery(e.target.value)} spellCheck={false} />
       </div>
       <nav className="agent-nav">
+        <button className={`agent-row nav-home${overviewOpen ? " selected" : ""}`} onClick={() => onSelect(null)}>
+          <span className="nav-home-icon" aria-hidden>
+            ⌂&#xFE0E;
+          </span>
+          <span className="agent-row-title">Overview</span>
+        </button>
         {attention.length > 0 && (
           <section>
             <h3>Needs your attention</h3>

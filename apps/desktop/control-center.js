@@ -11,6 +11,10 @@ const entry = join(here, "dist", "app", "index.html");
 
 let win = null;
 
+export function sendToControlCenter(channel, payload) {
+  win?.webContents.send(channel, payload);
+}
+
 export function openControlCenter(agentId) {
   if (win) {
     if (agentId) win.webContents.send("app:select", agentId);

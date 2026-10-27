@@ -29,7 +29,12 @@ Tested on Ubuntu GNOME Wayland, running Electron under XWayland (`--ozone-platfo
 - [x] The `×` button quit the whole app, which was easy to click by mistake. It now closes the
       panel; quit with `Ctrl/Cmd+Q` while the panel is focused.
 - [ ] Tray / menu bar icon with Open, Settings and Quit.
-- [ ] Settings screen: server URL, token, shortcut, which screen edge.
+- [x] The app opens on the control center after setup; the drawer stays at the screen edge.
+- [x] Settings: the drawer's screen and edge (top, right, bottom, left), chosen on a map of the
+      screens. The top edge of a MacBook screen wraps the camera notch (read with JXA, because
+      Electron doesn't report the notch).
+- [ ] Settings: server URL, token, shortcut.
+- [ ] Test the drawer on Windows (taskbar) and Linux for each edge; only macOS was checked.
 
 ## Control center (full app window)
 

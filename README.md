@@ -44,6 +44,10 @@ check Herdr, its agent integrations and Tailscale here (with buttons to fix them
 server, or **On another computer** to connect to a server that already runs elsewhere. Run
 `bun run --cwd apps/desktop setup` to open it again.
 
+After setup, the app opens on the control center, and the drawer waits at the screen edge.
+Closing the control center leaves the drawer running; opening the app again brings the control
+center back.
+
 On first start the server writes `~/.config/herdr-bot/config.json` with a random token and
 port 7787. A drawer on the same machine reads it from there. A drawer on another machine needs
 the server's Tailscale address and the token, in its own `~/.config/herdr-bot/config.json`:
@@ -69,8 +73,13 @@ sudo chmod 4755 apps/desktop/node_modules/electron/dist/chrome-sandbox
 
 ## Desktop drawer
 
-- A small notch sits at the middle of the right screen edge. Its dot shows the most urgent
-  state: orange = an agent is blocked, green = an agent finished, blue = agents are working.
+- A small notch sits at the middle of a screen edge (the right edge until you choose one). Its
+  dot shows the most urgent state: orange = an agent is blocked, green = an agent finished,
+  blue = agents are working.
+- Choose the screen and the edge (top, right, bottom or left) in the control center under
+  **Settings**: click an edge on the map of your screens. On the top edge of a MacBook screen the
+  notch wraps the camera. An edge where another screen continues is harder to hit, because the
+  pointer doesn't stop there.
 - Rest the mouse on the notch to slide the panel open; move away to close it.
   `Ctrl/Cmd+Alt+H` opens it and keeps it open; `Esc` or `×` closes it; `Ctrl/Cmd+Q` quits.
 - When an agent gets blocked or finishes, the panel peeks out for 5 s and a system

@@ -59,6 +59,31 @@ function connect(delay = 1000) {
   };
 }
 
+// ── Layout ────────────────────────────────────────────
+
+/** Edge and sizes come from placement.js, so the page and the window always agree. */
+function applyLayout(layout) {
+  const root = document.documentElement;
+  // The window moved to a new edge: jump there instead of animating across it.
+  document.body.classList.add("no-anim");
+  document.body.dataset.edge = layout.edge;
+  document.body.classList.toggle("camera", layout.camera);
+  for (const [name, px] of Object.entries({
+    "--notch-w": layout.notch.width,
+    "--notch-h": layout.notch.height,
+    "--panel-w": layout.panel.width,
+    "--panel-h": layout.panel.height,
+    "--inset": layout.inset,
+    "--margin": layout.margin,
+  })) {
+    root.style.setProperty(name, `${px}px`);
+  }
+  requestAnimationFrame(() => requestAnimationFrame(() => document.body.classList.remove("no-anim")));
+}
+
+applyLayout(config.layout);
+window.drawer.onLayout(applyLayout);
+
 // ── Events ────────────────────────────────────────────
 
 function onStatus({ agent, from, to }) {

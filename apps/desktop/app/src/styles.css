@@ -284,6 +284,38 @@ button:disabled {
   color: var(--muted);
 }
 
+.sidebar-foot {
+  padding: 8px;
+  border-top: 1px solid var(--line);
+}
+
+.foot-btn {
+  display: flex;
+  align-items: center;
+  gap: 8px;
+  width: 100%;
+  padding: 7px 10px;
+  border-radius: 9px;
+  font-size: 13px;
+  color: var(--muted);
+}
+
+.foot-btn:hover {
+  background: rgba(255, 255, 255, 0.04);
+  color: var(--text);
+}
+
+.foot-btn.active {
+  background: var(--raised);
+  color: var(--text);
+}
+
+.foot-icon {
+  width: 16px;
+  text-align: center;
+  font-size: 15px;
+}
+
 /* ── Agent view ────────────────────────────────────── */
 
 .agent-view {
@@ -1006,4 +1038,206 @@ button:disabled {
   display: flex;
   flex-direction: column;
   font-size: 13px;
+}
+
+/* ── Settings ──────────────────────────────────────── */
+
+.settings-lead {
+  margin: -4px 0 16px;
+  font-size: 13px;
+}
+
+.screen-map-wrap {
+  display: flex;
+  justify-content: center;
+  padding: 20px;
+  border-radius: 14px;
+  background: var(--panel);
+  border: 1px solid var(--line);
+}
+
+.screen-map {
+  position: relative;
+}
+
+.screen {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  border-radius: 8px;
+  border: 1px solid rgba(255, 255, 255, 0.12);
+  background: var(--raised);
+}
+
+.screen.current {
+  border-color: color-mix(in srgb, var(--accent) 45%, transparent);
+  background: color-mix(in srgb, var(--accent) 8%, var(--raised));
+}
+
+.screen-name {
+  display: flex;
+  flex-direction: column;
+  align-items: center;
+  gap: 4px;
+  max-width: calc(100% - 48px);
+  font-size: 12px;
+  text-align: center;
+  color: var(--muted);
+}
+
+.screen-name > span:first-child {
+  max-width: 100%;
+  overflow: hidden;
+  white-space: nowrap;
+  text-overflow: ellipsis;
+}
+
+.screen-main {
+  padding: 0 7px;
+  border-radius: 999px;
+  font-size: 10.5px;
+  font-weight: 600;
+  color: var(--text);
+  background: rgba(255, 255, 255, 0.08);
+}
+
+/* MacBook camera housing. */
+.screen-camera {
+  position: absolute;
+  top: 0;
+  left: 50%;
+  width: 11%;
+  height: 7px;
+  transform: translateX(-50%);
+  border-radius: 0 0 4px 4px;
+  background: #000;
+}
+
+/* An edge target: a wide hit area with a short bar in the middle, where the notch would sit. */
+.screen-edge {
+  position: absolute;
+  display: grid;
+  place-items: center;
+  padding: 0;
+}
+
+.screen-edge::after {
+  content: "";
+  border-radius: 3px;
+  background: rgba(255, 255, 255, 0.16);
+  transition: background 0.12s;
+}
+
+.screen-edge[data-edge="top"],
+.screen-edge[data-edge="bottom"] {
+  left: 22%;
+  right: 22%;
+  height: 22px;
+}
+
+.screen-edge[data-edge="top"] {
+  top: 0;
+  align-items: start;
+}
+
+.screen-edge[data-edge="bottom"] {
+  bottom: 0;
+  align-items: end;
+}
+
+.screen-edge[data-edge="left"],
+.screen-edge[data-edge="right"] {
+  top: 22%;
+  bottom: 22%;
+  width: 22px;
+}
+
+.screen-edge[data-edge="left"] {
+  left: 0;
+  justify-items: start;
+}
+
+.screen-edge[data-edge="right"] {
+  right: 0;
+  justify-items: end;
+}
+
+.screen-edge[data-edge="top"]::after,
+.screen-edge[data-edge="bottom"]::after {
+  width: 34px;
+  height: 5px;
+  margin: 4px 0;
+}
+
+.screen-edge[data-edge="left"]::after,
+.screen-edge[data-edge="right"]::after {
+  width: 5px;
+  height: 34px;
+  margin: 0 4px;
+}
+
+/* Below the camera, not under it. */
+.screen.has-camera .screen-edge[data-edge="top"]::after {
+  margin-top: 11px;
+}
+
+.screen-edge.inner::after {
+  background: rgba(255, 255, 255, 0.08);
+}
+
+.screen-edge:hover::after {
+  background: color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.screen-edge.selected::after {
+  background: var(--accent);
+  box-shadow: 0 0 10px color-mix(in srgb, var(--accent) 60%, transparent);
+}
+
+.screen-edge:focus-visible {
+  outline: 2px solid var(--accent);
+  outline-offset: -2px;
+  border-radius: 6px;
+}
+
+.placement-controls {
+  display: flex;
+  flex-wrap: wrap;
+  align-items: end;
+  gap: 16px 24px;
+  margin-top: 16px;
+}
+
+.field {
+  display: flex;
+  flex-direction: column;
+  gap: 6px;
+  font-size: 12.5px;
+}
+
+.field select {
+  min-width: 260px;
+  padding: 6px 10px;
+  border-radius: 9px;
+  border: 1px solid var(--line);
+  background: var(--panel);
+  color: var(--text);
+  font: inherit;
+  font-size: 13px;
+  outline: none;
+}
+
+.field select:focus {
+  border-color: var(--accent);
+}
+
+.placement-hint {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+}
+
+.settings-error {
+  margin: 14px 0 0;
+  font-size: 12.5px;
+  color: var(--error);
 }

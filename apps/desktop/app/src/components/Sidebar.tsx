@@ -8,9 +8,11 @@ interface Props {
   selectedId: string | null;
   onSelect(id: string | null): void;
   overviewOpen: boolean;
+  settingsOpen: boolean;
+  onOpenSettings(): void;
 }
 
-export function Sidebar({ state, connected, selectedId, onSelect, overviewOpen }: Props) {
+export function Sidebar({ state, connected, selectedId, onSelect, overviewOpen, settingsOpen, onOpenSettings }: Props) {
   const [query, setQuery] = useState("");
 
   const visible = useMemo(() => {
@@ -80,6 +82,14 @@ export function Sidebar({ state, connected, selectedId, onSelect, overviewOpen }
         ))}
         {state.agents.length === 0 && <p className="empty">{connected ? "No agents are running." : "Connecting…"}</p>}
       </nav>
+      <footer className="sidebar-foot">
+        <button className={`foot-btn${settingsOpen ? " active" : ""}`} onClick={onOpenSettings}>
+          <span className="foot-icon" aria-hidden>
+            ⚙&#xFE0E;
+          </span>
+          Settings
+        </button>
+      </footer>
     </aside>
   );
 }

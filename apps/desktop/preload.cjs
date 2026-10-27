@@ -3,6 +3,8 @@ const { contextBridge, ipcRenderer } = require("electron");
 
 contextBridge.exposeInMainWorld("drawer", {
   config: () => ipcRenderer.invoke("drawer:config"),
+  /** The screen or the edge changed: new sizes and edge for the page. */
+  onLayout: (fn) => ipcRenderer.on("drawer:layout", (_e, layout) => fn(layout)),
   onSetOpen: (fn) => ipcRenderer.on("drawer:set-open", (_e, open) => fn(open)),
   /** Slide out for `ms` even if the mouse is elsewhere (an agent got blocked or finished). */
   peek: (ms) => ipcRenderer.send("drawer:peek", ms),

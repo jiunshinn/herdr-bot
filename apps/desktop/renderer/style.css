@@ -1,9 +1,10 @@
-/* Keep --notch-* / --panel-* / --margin in sync with main.js (NOTCH, PANEL, MARGIN). */
+/* --notch-*, --panel-*, --inset and --margin come from placement.js (app.js sets them). */
 :root {
   --notch-w: 26px;
   --notch-h: 84px;
   --panel-w: 360px;
   --panel-h: 520px;
+  --inset: 0px;
   --margin: 40px;
 
   --bg: rgba(22, 23, 27, 0.94);
@@ -49,6 +50,15 @@ button {
   display: none !important;
 }
 
+/* Until app.js knows the edge. */
+body:not([data-edge]) {
+  visibility: hidden;
+}
+
+body.no-anim * {
+  transition: none !important;
+}
+
 .muted {
   color: var(--muted);
 }
@@ -57,29 +67,81 @@ button {
 
 .notch {
   position: absolute;
-  right: 0;
-  top: 50%;
   width: var(--notch-w);
   height: var(--notch-h);
-  transform: translateY(-50%);
+  transform: var(--at);
   display: flex;
-  flex-direction: column;
   align-items: center;
   justify-content: center;
   gap: 6px;
-  border-radius: 12px 0 0 12px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-right: 0;
-  box-shadow: -4px 0 16px rgba(0, 0, 0, 0.35);
+  box-shadow: 0 0 16px rgba(0, 0, 0, 0.35);
   transition:
     opacity 0.15s,
     transform 0.2s;
 }
 
+/* The notch sits in the middle of the screen edge; --away moves it off the screen as the panel opens. */
+[data-edge="right"] .notch {
+  right: 0;
+  top: 50%;
+  flex-direction: column;
+  border-right: 0;
+  border-radius: 12px 0 0 12px;
+  --at: translateY(-50%);
+  --away: translate(8px, -50%);
+}
+
+[data-edge="left"] .notch {
+  left: 0;
+  top: 50%;
+  flex-direction: column;
+  border-left: 0;
+  border-radius: 0 12px 12px 0;
+  --at: translateY(-50%);
+  --away: translate(-8px, -50%);
+}
+
+[data-edge="top"] .notch {
+  top: 0;
+  left: 50%;
+  border-top: 0;
+  border-radius: 0 0 12px 12px;
+  --at: translateX(-50%);
+  --away: translate(-50%, -8px);
+}
+
+[data-edge="bottom"] .notch {
+  bottom: 0;
+  left: 50%;
+  border-bottom: 0;
+  border-radius: 12px 12px 0 0;
+  --at: translateX(-50%);
+  --away: translate(-50%, 8px);
+}
+
 body.open .notch {
   opacity: 0;
-  transform: translate(8px, -50%);
+  transform: var(--away);
+}
+
+/* Top edge of a MacBook screen: the notch wraps the camera housing, so both read as one black
+   shape. The count sits in the left wing and the dot in the right wing. */
+body.camera {
+  --bg: #000;
+}
+
+body.camera .notch {
+  justify-content: space-between;
+  padding: 0 10px;
+  border: 0;
+  border-radius: 0 0 14px 14px;
+  box-shadow: none;
+}
+
+body.camera .notch-dot {
+  order: 1;
 }
 
 .notch-dot {
@@ -113,21 +175,56 @@ body[data-herd="blocked"] .notch-dot {
 
 .panel {
   position: absolute;
-  right: 0;
-  top: var(--margin);
   width: var(--panel-w);
   height: var(--panel-h);
+  /* Under a camera notch: a strip the camera hides. */
+  padding-top: var(--inset);
   display: flex;
   flex-direction: column;
-  border-radius: 16px 0 0 16px;
   background: var(--bg);
   border: 1px solid var(--line);
-  border-right: 0;
-  box-shadow: -10px 0 32px rgba(0, 0, 0, 0.45);
+  box-shadow: 0 0 32px rgba(0, 0, 0, 0.45);
   backdrop-filter: blur(20px);
-  transform: translateX(calc(100% + 24px));
+  transform: var(--hide);
   transition: transform 0.32s cubic-bezier(0.2, 1.25, 0.35, 1);
   overflow: hidden;
+}
+
+[data-edge="right"] .panel {
+  right: 0;
+  top: var(--margin);
+  border-right: 0;
+  border-radius: 16px 0 0 16px;
+  --hide: translateX(calc(100% + 24px));
+}
+
+[data-edge="left"] .panel {
+  left: 0;
+  top: var(--margin);
+  border-left: 0;
+  border-radius: 0 16px 16px 0;
+  --hide: translateX(calc(-100% - 24px));
+}
+
+[data-edge="top"] .panel {
+  top: 0;
+  left: var(--margin);
+  border-top: 0;
+  border-radius: 0 0 16px 16px;
+  --hide: translateY(calc(-100% - 24px));
+}
+
+[data-edge="bottom"] .panel {
+  bottom: 0;
+  left: var(--margin);
+  border-bottom: 0;
+  border-radius: 16px 16px 0 0;
+  --hide: translateY(calc(100% + 24px));
+}
+
+body.camera .panel {
+  border: 0;
+  border-radius: 0 0 22px 22px;
 }
 
 body.open .panel {
@@ -136,7 +233,7 @@ body.open .panel {
 
 body.peek .panel {
   box-shadow:
-    -10px 0 32px rgba(0, 0, 0, 0.45),
+    0 0 32px rgba(0, 0, 0, 0.45),
     0 0 0 1px var(--peek-color, var(--accent));
 }
 

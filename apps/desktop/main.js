@@ -1,27 +1,24 @@
-// Desktop drawer: a transparent, always-on-top window docked to the vertical centre of the right
-// screen edge. Collapsed, only a small notch shows and clicks pass through; when the mouse rests on
+// Desktop drawer: a transparent, always-on-top window docked to the middle of one screen edge (see
+// placement.js). Collapsed, only a small notch shows and clicks pass through; when the mouse rests on
 // the notch the page slides the panel open, and it closes again once the mouse leaves.
+// After setup the app opens on the control center; closing it leaves the drawer running.
 
 import { app, BrowserWindow, globalShortcut, ipcMain, Notification, screen } from "electron";
 import { dirname, join } from "node:path";
 import { fileURLToPath } from "node:url";
 import { readConfig, serverConfig } from "./config.js";
-import { openControlCenter } from "./control-center.js";
+import { openControlCenter, sendToControlCenter } from "./control-center.js";
 import { startLocalServer } from "./local-server.js";
 import { needsOnboarding, openOnboarding } from "./onboarding.js";
+import { layout, loadCameraNotches, placementInfo, savePlacement } from "./placement.js";
 
 const here = dirname(fileURLToPath(import.meta.url));
-
-// Keep in sync with renderer/style.css (:root --notch-* / --panel-*).
-const NOTCH = { width: 26, height: 84 };
-const PANEL = { width: 360, height: 520 };
-// Transparent room around the panel for the open animation's overshoot and the shadow.
-const MARGIN = 40;
 
 const OPEN_DELAY = 80; // ms the mouse has to rest on the notch, so sweeping past doesn't open it
 const CLOSE_DELAY = 300;
 const TICK_MS = 1000 / 30;
 const TOGGLE_SHORTCUT = "CommandOrControl+Alt+H";
+const SHOW_PLACE_MS = 1800; // after a move, the drawer slides out this long to show where it went
 
 let win;
 let isOpen = false;
@@ -30,22 +27,25 @@ let holding = false;
 let enteredAt = null;
 let leftAt = null;
 let peekUntil = 0;
-
-/** The rightmost display, so the notch sits where the cursor stops at the edge of the desktop. */
-function edgeDisplay() {
-  return screen.getAllDisplays().reduce((a, b) => (b.bounds.x + b.bounds.width > a.bounds.x + a.bounds.width ? b : a));
-}
+let current; // layout(): where the window, the notch and the panel are
+let showPlaceTimer = null;
 
 function place() {
-  const { bounds } = edgeDisplay();
-  const width = PANEL.width + MARGIN;
-  const height = PANEL.height + MARGIN * 2;
-  win.setBounds({
-    x: bounds.x + bounds.width - width,
-    y: Math.round(bounds.y + bounds.height / 2 - height / 2),
-    width,
-    height,
-  });
+  current = layout();
+  win.setBounds(current.bounds);
+  win.webContents.send("drawer:layout", current);
+  sendToControlCenter("placement:changed", placementInfo());
+}
+
+/** `p` is inside `r` grown by `slack` on each side except the screen edge. */
+function within(r, p, slack, edge) {
+  const grow = (side) => (side === edge ? 0 : slack);
+  return (
+    p.x >= r.x - grow("left") &&
+    p.x <= r.x + r.width + grow("right") &&
+    p.y >= r.y - grow("top") &&
+    p.y <= r.y + r.height + grow("bottom")
+  );
 }
 
 function setOpen(open) {
@@ -57,14 +57,16 @@ function setOpen(open) {
   if (!open && win.isFocused()) win.blur();
 }
 
+function peek(ms) {
+  peekUntil = Date.now() + ms;
+  setOpen(true);
+}
+
 function tick() {
-  const { bounds } = edgeDisplay();
   const p = screen.getCursorScreenPoint();
-  const size = isOpen ? PANEL : NOTCH;
-  const slack = isOpen ? 16 : 0;
-  const right = bounds.x + bounds.width;
-  const midY = bounds.y + bounds.height / 2;
-  const inside = p.x >= right - size.width - slack && p.x <= right && Math.abs(p.y - midY) <= size.height / 2 + slack;
+  const inside = isOpen
+    ? within(current.panelRect, p, 16, current.edge)
+    : within(current.notchRect, p, 0, current.edge);
 
   const now = Date.now();
   if (inside) {
@@ -110,17 +112,29 @@ function createWindow() {
   win.loadFile(join(here, "renderer", "index.html"));
   win.once("ready-to-show", () => win.showInactive());
 
-  screen.on("display-metrics-changed", place);
-  screen.on("display-added", place);
-  screen.on("display-removed", place);
+  // A new or changed screen can add or move a camera notch, so read the notches again.
+  const displaysChanged = (reread) => {
+    place();
+    if (reread) loadCameraNotches().then(place);
+  };
+  screen.on("display-added", () => displaysChanged(true));
+  screen.on("display-removed", () => displaysChanged(true));
+  screen.on("display-metrics-changed", (_e, _d, changed) =>
+    displaysChanged(changed.includes("bounds") || changed.includes("scaleFactor")),
+  );
   setInterval(tick, TICK_MS);
 }
 
-ipcMain.handle("drawer:config", () => ({ ...serverConfig(), platform: process.platform }));
-ipcMain.on("drawer:peek", (_e, ms) => {
-  peekUntil = Date.now() + (Number(ms) || 5000);
-  setOpen(true);
-});
+function showControlCenter(agentId) {
+  try {
+    openControlCenter(agentId);
+  } catch (err) {
+    if (Notification.isSupported()) new Notification({ title: "HerdrBot", body: err.message }).show();
+  }
+}
+
+ipcMain.handle("drawer:config", () => ({ ...serverConfig(), platform: process.platform, layout: current }));
+ipcMain.on("drawer:peek", (_e, ms) => peek(Number(ms) || 5000));
 ipcMain.on("drawer:hold", (_e, on) => {
   holding = Boolean(on);
 });
@@ -130,11 +144,19 @@ ipcMain.on("drawer:notify", (_e, { title, body }) => {
 ipcMain.on("drawer:close", () => setOpen(false));
 ipcMain.on("drawer:open-app", (_e, agentId) => {
   setOpen(false);
-  try {
-    openControlCenter(typeof agentId === "string" ? agentId : undefined);
-  } catch (err) {
-    if (Notification.isSupported()) new Notification({ title: "HerdrBot", body: err.message }).show();
+  showControlCenter(typeof agentId === "string" ? agentId : undefined);
+});
+ipcMain.handle("placement:get", () => placementInfo());
+ipcMain.handle("placement:set", (_e, choice) => {
+  savePlacement(choice);
+  if (win) {
+    setOpen(false);
+    place();
+    // Slide out at the new place, so the user sees where the drawer went.
+    clearTimeout(showPlaceTimer);
+    showPlaceTimer = setTimeout(() => peek(SHOW_PLACE_MS), 350);
   }
+  return placementInfo();
 });
 ipcMain.on("app:open-setup", () => openOnboarding(() => {}));
 ipcMain.on("drawer:quit", () => app.quit());
@@ -148,6 +170,7 @@ async function startDrawer() {
       if (Notification.isSupported()) new Notification({ title: "HerdrBot server", body: err.message }).show();
     });
   }
+  await loadCameraNotches();
   createWindow();
   globalShortcut.register(TOGGLE_SHORTCUT, () => {
     if (isOpen) return setOpen(false);
@@ -157,16 +180,25 @@ async function startDrawer() {
   });
 }
 
+async function start() {
+  await startDrawer();
+  showControlCenter();
+}
+
 app.whenReady().then(() => {
   // `--setup` reopens onboarding, e.g. to switch between this computer and another one.
   if (needsOnboarding() || process.argv.includes("--setup")) {
-    openOnboarding(({ cancelled }) => (cancelled ? app.quit() : startDrawer()));
+    openOnboarding(({ cancelled }) => (cancelled ? app.quit() : start()));
   } else {
-    startDrawer();
+    start();
   }
 });
 
-// The drawer is the only window after onboarding; keep running when onboarding closes into it.
+// Opening the app again (a second launch, or a click on its Dock icon) shows the control center.
+app.on("second-instance", () => win && showControlCenter());
+app.on("activate", () => win && showControlCenter());
+
+// The drawer keeps running when the control center or onboarding closes.
 app.on("window-all-closed", () => {});
 
 app.on("will-quit", () => globalShortcut.unregisterAll());

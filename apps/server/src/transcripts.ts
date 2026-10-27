@@ -281,6 +281,19 @@ function clip(text: string, max = MAX_TOOL_TEXT): string {
   return text.length > max ? `${text.slice(0, max)}\n… (${text.length - max} more characters)` : text;
 }
 
+/**
+ * A data URL for an attached image, or "" when the file has no data for it.
+ *   Claude Code  { type: "image", source: { type: "base64", media_type, data } }
+ *   Codex        { type: "input_image", image_url: "data:image/png;base64,…" }
+ */
+function imageSrc(b: any): string {
+  const s = b.source;
+  if (s?.type === "base64" && typeof s.data === "string" && /^image\/[\w.+-]+$/.test(s.media_type)) {
+    return `data:${s.media_type};base64,${s.data}`;
+  }
+  return typeof b.image_url === "string" && b.image_url.startsWith("data:image/") ? b.image_url : "";
+}
+
 function toText(content: unknown): string {
   if (typeof content === "string") return content;
   if (Array.isArray(content)) {
@@ -397,15 +410,15 @@ function parseClaude(e: any, id: string, items: TranscriptItem[]): void {
     // isCompactSummary: the summary Claude writes when it compacts a long conversation.
     if (e.isMeta || e.isCompactSummary) return;
     if (typeof content === "string") {
-      if (!isInjected(content)) items.push({ kind: "user", id, at, text: content, images: 0 });
+      if (!isInjected(content)) items.push({ kind: "user", id, at, text: content, images: [] });
       return;
     }
     if (!Array.isArray(content)) return;
     const texts: string[] = [];
-    let images = 0;
+    const images: string[] = [];
     content.forEach((b: any, i: number) => {
       if (b.type === "text" && !isInjected(b.text)) texts.push(b.text);
-      else if (b.type === "image") images++;
+      else if (b.type === "image") images.push(imageSrc(b));
       else if (b.type === "tool_result") {
         items.push({
           kind: "tool_result",
@@ -417,7 +430,7 @@ function parseClaude(e: any, id: string, items: TranscriptItem[]): void {
         });
       }
     });
-    if (texts.length || images) items.push({ kind: "user", id, at, text: texts.join("\n\n"), images });
+    if (texts.length || images.length) items.push({ kind: "user", id, at, text: texts.join("\n\n"), images });
     return;
   }
 
@@ -451,8 +464,8 @@ function parseCodex(e: any, id: string, items: TranscriptItem[]): void {
         .map((c) => c.text)
         .join("\n\n");
       if (p.role === "user") {
-        const images = parts.filter((c) => c.type === "input_image").length;
-        if ((text && !isInjected(text)) || images) items.push({ kind: "user", id, at, text: isInjected(text) ? "" : text, images });
+        const images = parts.filter((c) => c.type === "input_image").map(imageSrc);
+        if ((text && !isInjected(text)) || images.length) items.push({ kind: "user", id, at, text: isInjected(text) ? "" : text, images });
       } else if (p.role === "assistant" && text.trim()) {
         items.push({ kind: "assistant", id, at, text });
       }

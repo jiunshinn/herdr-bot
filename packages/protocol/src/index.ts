@@ -63,7 +63,8 @@ export type ServerMessage = { type: "state"; state: HerdState } | AgentStatusEve
 
 /** One entry of an agent's conversation, parsed from its own session file. */
 export type TranscriptItem =
-  | { kind: "user"; id: string; at?: string; text: string; images: number }
+  /** images: a data URL for each attached image, or "" when the session file has no data for it. */
+  | { kind: "user"; id: string; at?: string; text: string; images: string[] }
   | { kind: "assistant"; id: string; at?: string; text: string }
   | { kind: "tool_call"; id: string; at?: string; callId: string; name: string; summary: string; input: string }
   | { kind: "tool_result"; id: string; at?: string; callId: string; output: string; isError: boolean };

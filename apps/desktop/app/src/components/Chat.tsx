@@ -36,6 +36,7 @@ export function Chat({ agent, items, truncated }: { agent: AgentInfo; items: Tra
   const blocks = useMemo(() => toBlocks(items), [items]);
   const scroller = useRef<HTMLDivElement>(null);
   const stick = useRef(true);
+  const [zoom, setZoom] = useState<string | null>(null);
 
   // Follow new messages only while the user is at the bottom.
   const onScroll = () => {
@@ -48,6 +49,12 @@ export function Chat({ agent, items, truncated }: { agent: AgentInfo; items: Tra
   useEffect(() => {
     stick.current = true;
   }, [agent.id]);
+  useEffect(() => {
+    if (!zoom) return;
+    const onKey = (e: KeyboardEvent) => e.key === "Escape" && setZoom(null);
+    window.addEventListener("keydown", onKey);
+    return () => window.removeEventListener("keydown", onKey);
+  }, [zoom]);
 
   const lastSteps = [...blocks].reverse().find((b) => b.type === "steps") as Extract<Block, { type: "steps" }> | undefined;
 
@@ -60,10 +67,20 @@ export function Chat({ agent, items, truncated }: { agent: AgentInfo; items: Tra
           if (b.type === "user") {
             return (
               <div key={b.item.id} className="msg user">
-                <div className="bubble">
-                  {b.item.text}
-                  {b.item.images > 0 && <div className="image-chip">🖼 {b.item.images} image{b.item.images > 1 ? "s" : ""}</div>}
-                </div>
+                {b.item.images.length > 0 && (
+                  <div className="msg-images">
+                    {b.item.images.map((src, i) =>
+                      src ? (
+                        <img key={i} src={src} alt="" onClick={() => setZoom(src)} />
+                      ) : (
+                        <div key={i} className="image-chip">
+                          🖼 Image
+                        </div>
+                      ),
+                    )}
+                  </div>
+                )}
+                {b.item.text && <div className="bubble">{b.item.text}</div>}
                 <div className="meta">{clockTime(b.item.at)}</div>
               </div>
             );
@@ -88,6 +105,11 @@ export function Chat({ agent, items, truncated }: { agent: AgentInfo; items: Tra
           );
         })}
       </div>
+      {zoom && (
+        <div className="lightbox" onClick={() => setZoom(null)}>
+          <img src={zoom} alt="" />
+        </div>
+      )}
     </div>
   );
 }

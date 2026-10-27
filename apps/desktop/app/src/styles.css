@@ -341,6 +341,99 @@ button:disabled {
   overflow: hidden;
 }
 
+.statusline {
+  display: flex;
+  align-items: center;
+  margin-top: 3px;
+  font: 11.5px/1.5 ui-monospace, "SF Mono", "JetBrains Mono", Menlo, monospace;
+  color: var(--muted);
+  white-space: nowrap;
+  overflow: hidden;
+}
+
+.sl-group {
+  display: inline-flex;
+  align-items: center;
+  gap: 6px;
+  min-width: 0;
+}
+
+.sl-group + .sl-group::before {
+  content: "│";
+  margin: 0 8px;
+  color: var(--faint);
+}
+
+.sl-group > span + span::before {
+  content: "·";
+  margin-right: 6px;
+  color: var(--faint);
+}
+
+.sl-model {
+  font-weight: 650;
+  color: #c792ea;
+}
+
+.sl-effort {
+  color: #f5d76e;
+}
+
+.sl-folder {
+  color: #82d278;
+}
+
+.sl-branch {
+  max-width: 220px;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  color: #6ec8e6;
+}
+
+.sl-context {
+  --fill: #7ddfc2;
+}
+
+.sl-context[data-level="mid"] {
+  --fill: #f5a623;
+}
+
+.sl-context[data-level="high"] {
+  --fill: #f05454;
+}
+
+.sl-context > span + span::before {
+  content: none;
+}
+
+.sl-bar {
+  display: block;
+  width: 60px;
+  height: 3px;
+  border-radius: 2px;
+  background: var(--raised);
+  overflow: hidden;
+}
+
+.sl-bar > span {
+  display: block;
+  height: 100%;
+  background: var(--fill);
+}
+
+.sl-pct {
+  color: var(--fill);
+}
+
+.sl-mode[data-level="auto"] {
+  color: var(--accent);
+}
+
+.sl-mode[data-level="skip"] {
+  color: var(--error);
+  font-weight: 650;
+}
+
 .pill {
   padding: 1px 8px;
   border-radius: 999px;

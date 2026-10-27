@@ -8,7 +8,7 @@ import { existsSync } from "node:fs";
 import { open, readdir, stat } from "node:fs/promises";
 import { homedir } from "node:os";
 import { join } from "node:path";
-import type { AgentInfo, TranscriptItem, TranscriptResponse } from "@herdr-bot/protocol";
+import type { AgentInfo, AgentMeta, AgentPermissions, TranscriptItem, TranscriptResponse } from "@herdr-bot/protocol";
 import type { Machine } from "./herdr";
 import { shellQuote, sshRun } from "./ssh";
 
@@ -19,6 +19,8 @@ const INITIAL_BYTES = 1_500_000;
 /** Most bytes read per request; the client catches up over several polls. */
 const MAX_CHUNK = 4_000_000;
 const MAX_TOOL_TEXT = 4_000;
+/** Codex writes its git branch only in the first line; a full load that starts later reads it from here. */
+const HEAD_BYTES = 256_000;
 
 const located = new Map<string, string>();
 
@@ -33,6 +35,7 @@ export async function readTranscript(
     source: null,
     sessionId,
     items: [],
+    meta: {},
     cursor: 0,
     reset: true,
     truncated: false,
@@ -75,11 +78,17 @@ export async function readTranscript(
   const lastNl = bytes.lastIndexOf(0x0a);
   const complete = lastNl >= 0 ? bytes.subarray(0, lastNl + 1) : new Uint8Array();
 
-  const items = parse(source, complete, start);
+  const { items, meta } = parse(source, complete, start);
+  if (reset && start > 0 && source === "codex") {
+    const head = await readChunk(machine, path, 0, HEAD_BYTES);
+    const nl = head?.data.indexOf(0x0a) ?? -1;
+    if (head && nl >= 0) Object.assign(meta, { ...parse(source, head.data.subarray(0, nl + 1), 0).meta, ...meta });
+  }
   return {
     source,
     sessionId,
     items,
+    meta,
     cursor: start + complete.length,
     reset,
     truncated: reset && chunk.start > 0,
@@ -199,12 +208,12 @@ interface Chunk {
 }
 
 /** `from` null: the last INITIAL_BYTES. */
-async function readChunk(machine: Machine, path: string, from: number | null): Promise<Chunk | null> {
+async function readChunk(machine: Machine, path: string, from: number | null, limit = MAX_CHUNK): Promise<Chunk | null> {
   if (machine.remote) {
     if (!machine.target) return null;
     // First line: file size. Then the bytes from `start`.
     const fromExpr = from === null ? `$(( s > ${INITIAL_BYTES} ? s - ${INITIAL_BYTES} : 0 ))` : String(from);
-    const cmd = `f=${shellQuote(path)}; [ -f "$f" ] || exit 3; s=$(wc -c < "$f" | tr -d ' '); st=${fromExpr}; echo "$s $st"; tail -c +$((st + 1)) "$f" | head -c ${MAX_CHUNK}`;
+    const cmd = `f=${shellQuote(path)}; [ -f "$f" ] || exit 3; s=$(wc -c < "$f" | tr -d ' '); st=${fromExpr}; echo "$s $st"; tail -c +$((st + 1)) "$f" | head -c ${limit}`;
     const r = await sshRun(machine.target, cmd);
     if (r.code !== 0) return null;
     const nl = r.stdout.indexOf(0x0a);
@@ -219,7 +228,7 @@ async function readChunk(machine: Machine, path: string, from: number | null): P
     return null;
   }
   const start = from === null ? Math.max(0, size - INITIAL_BYTES) : Math.min(from, size);
-  const length = Math.min(size - start, MAX_CHUNK);
+  const length = Math.min(size - start, limit);
   const file = await open(path, "r");
   try {
     const data = new Uint8Array(length);
@@ -232,8 +241,10 @@ async function readChunk(machine: Machine, path: string, from: number | null): P
 
 // ── Parsing ───────────────────────────────────────────
 
-function parse(source: Source, bytes: Uint8Array, start: number): TranscriptItem[] {
+function parse(source: Source, bytes: Uint8Array, start: number): { items: TranscriptItem[]; meta: AgentMeta } {
   const items: TranscriptItem[] = [];
+  const meta: AgentMeta = {};
+  const claude: ClaudeState = { longContext: false };
   let offset = 0;
   const decoder = new TextDecoder();
   while (offset < bytes.length) {
@@ -250,10 +261,15 @@ function parse(source: Source, bytes: Uint8Array, start: number): TranscriptItem
     } catch {
       continue;
     }
-    if (source === "claude") parseClaude(entry, id, items);
-    else parseCodex(entry, id, items);
+    if (source === "claude") {
+      claudeMeta(entry, meta, claude);
+      parseClaude(entry, id, items);
+    } else {
+      codexMeta(entry, meta);
+      parseCodex(entry, id, items);
+    }
   }
-  return items;
+  return { items, meta };
 }
 
 /** Prompts the agent's harness injects, not text the user typed. */
@@ -303,6 +319,72 @@ function formatInput(input: any): string {
 function firstLine(s: string): string {
   const line = s.split("\n").find((l) => l.trim()) ?? "";
   return line.length > 160 ? `${line.slice(0, 160)}…` : line;
+}
+
+// ── Status line ───────────────────────────────────────
+
+/** "claude-opus-5-5" → "Opus 5.5". Other ids stay as they are. */
+function modelName(id: string): string {
+  const m = /^claude-([a-z]+)-(\d+)(?:-(\d{1,2})(?!\d))?/.exec(id);
+  if (!m) return id;
+  return `${m[1]![0]!.toUpperCase()}${m[1]!.slice(1)} ${m[2]}${m[3] ? `.${m[3]}` : ""}`;
+}
+
+const CLAUDE_PERMISSIONS: Record<string, AgentPermissions> = {
+  default: { label: "default", level: "ask" },
+  plan: { label: "plan mode", level: "ask" },
+  dontAsk: { label: "don't ask", level: "ask" },
+  acceptEdits: { label: "accept edits", level: "auto" },
+  auto: { label: "auto mode", level: "auto" },
+  bypassPermissions: { label: "bypass permissions", level: "skip" },
+};
+
+interface ClaudeState {
+  /** The latest request asked for the 1M-token context window. */
+  longContext: boolean;
+}
+
+function claudeMeta(e: any, meta: AgentMeta, state: ClaudeState): void {
+  if (e.isSidechain) return;
+  if (typeof e.permissionMode === "string") {
+    meta.permissions = CLAUDE_PERMISSIONS[e.permissionMode] ?? { label: e.permissionMode, level: "ask" };
+  }
+  if (typeof e.gitBranch === "string" && e.gitBranch) meta.branch = e.gitBranch;
+  if (e.type === "api-request" && Array.isArray(e.params?.betas)) {
+    state.longContext = e.params.betas.some((b: unknown) => typeof b === "string" && b.startsWith("context-1m"));
+  }
+  if (e.type !== "assistant") return;
+  const model = e.message?.model;
+  if (typeof model !== "string" || model === "<synthetic>") return;
+  meta.model = modelName(model);
+  if (typeof e.effort === "string") meta.effort = e.effort;
+  const u = e.message.usage;
+  const used = (u?.input_tokens ?? 0) + (u?.cache_creation_input_tokens ?? 0) + (u?.cache_read_input_tokens ?? 0);
+  // The session file has no window size: 200K unless the request asked for 1M or already uses more.
+  if (used > 0) meta.context = { used, window: state.longContext || used > 200_000 ? 1_000_000 : 200_000 };
+}
+
+const CODEX_SANDBOX: Record<string, AgentPermissions> = {
+  "read-only": { label: "read only", level: "ask" },
+  "workspace-write": { label: "auto", level: "auto" },
+  "danger-full-access": { label: "full access", level: "skip" },
+};
+
+function codexMeta(e: any, meta: AgentMeta): void {
+  const p = e.payload ?? {};
+  if (e.type === "session_meta") {
+    if (typeof p.git?.branch === "string") meta.branch = p.git.branch;
+  } else if (e.type === "turn_context") {
+    if (typeof p.model === "string") meta.model = p.model;
+    const effort = p.effort ?? p.collaboration_mode?.settings?.reasoning_effort;
+    if (typeof effort === "string") meta.effort = effort;
+    const sandbox = typeof p.sandbox_policy === "string" ? p.sandbox_policy : (p.sandbox_policy?.type ?? p.sandbox_policy?.mode);
+    if (typeof sandbox === "string") meta.permissions = CODEX_SANDBOX[sandbox] ?? { label: sandbox, level: "ask" };
+  } else if (e.type === "event_msg" && p.type === "token_count") {
+    const used = p.info?.last_token_usage?.total_tokens;
+    const window = p.info?.model_context_window;
+    if (used > 0 && window > 0) meta.context = { used, window };
+  }
 }
 
 function parseClaude(e: any, id: string, items: TranscriptItem[]): void {

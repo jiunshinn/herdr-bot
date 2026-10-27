@@ -1,9 +1,10 @@
 import type { AgentInfo, HerdState } from "@herdr-bot/protocol";
 import { useCallback, useEffect, useRef, useState } from "react";
 import { type Api, useOutput, useTranscript } from "../api";
-import { kindLabel, machineLabel, shortPath, STATUS_LABEL } from "../util";
+import { kindLabel, machineLabel, STATUS_LABEL } from "../util";
 import { Chat } from "./Chat";
 import { Composer } from "./Composer";
+import { StatusLine } from "./StatusLine";
 import { Terminal } from "./Terminal";
 
 interface Props {
@@ -80,9 +81,8 @@ export function AgentView({ api, state, agent }: Props) {
             <span>{kindLabel(agent.kind)}</span>
             <span>·</span>
             <span>{machine}</span>
-            <span>·</span>
-            <span title={agent.cwd}>{shortPath(agent.cwd)}</span>
           </div>
+          <StatusLine meta={transcript.meta} cwd={agent.cwd} />
         </div>
         <div className="tabs no-drag">
           <button className={!showTerminal ? "active" : ""} disabled={!chatAvailable} onClick={() => setTab("chat")}>

@@ -1,6 +1,7 @@
 import { useEffect, useRef, useState } from "react";
 import type {
   AgentInfo,
+  AgentMeta,
   HerdState,
   ServerMessage,
   TranscriptItem,
@@ -120,6 +121,7 @@ function pollDelay(status: AgentInfo["status"]): number {
 export interface Transcript {
   items: TranscriptItem[];
   source: TranscriptResponse["source"];
+  meta: AgentMeta;
   reason?: string;
   truncated: boolean;
   loading: boolean;
@@ -129,14 +131,14 @@ export interface Transcript {
 const MAX_ITEMS = 3000;
 
 export function useTranscript(api: Api, agent: AgentInfo): Transcript {
-  const [t, setT] = useState<Transcript>({ items: [], source: null, truncated: false, loading: true });
+  const [t, setT] = useState<Transcript>({ items: [], source: null, meta: {}, truncated: false, loading: true });
   const cursor = useRef<{ after: number | null; session: string | null }>({ after: null, session: null });
   const status = useRef(agent.status);
   status.current = agent.status;
 
   useEffect(() => {
     cursor.current = { after: null, session: null };
-    setT({ items: [], source: null, truncated: false, loading: true });
+    setT({ items: [], source: null, meta: {}, truncated: false, loading: true });
     let stopped = false;
     let timer: ReturnType<typeof setTimeout> | undefined;
 
@@ -149,6 +151,7 @@ export function useTranscript(api: Api, agent: AgentInfo): Transcript {
           setT((prev) => ({
             items: (r.reset ? r.items : prev.items.concat(r.items)).slice(-MAX_ITEMS),
             source: r.source,
+            meta: r.reset ? r.meta : { ...prev.meta, ...r.meta },
             reason: r.reason,
             truncated: r.reset ? r.truncated : prev.truncated,
             loading: false,

@@ -68,11 +68,33 @@ export type TranscriptItem =
   | { kind: "tool_call"; id: string; at?: string; callId: string; name: string; summary: string; input: string }
   | { kind: "tool_result"; id: string; at?: string; callId: string; output: string; isError: boolean };
 
+/** How freely the agent acts: Claude Code's permission mode, or Codex's sandbox policy. */
+export interface AgentPermissions {
+  /** As the agent names it, e.g. "auto mode", "bypass permissions", "full access". */
+  label: string;
+  /** ask: asks before risky actions; auto: acts alone within limits; skip: no checks at all. */
+  level: "ask" | "auto" | "skip";
+}
+
+/** What the agent's own status line shows, read from its session file. */
+export interface AgentMeta {
+  /** Display name, e.g. "Opus 5.5", or the model id when it has no known name. */
+  model?: string;
+  /** Reasoning effort, e.g. "high", "xhigh". */
+  effort?: string;
+  branch?: string;
+  /** Tokens in the latest request and the model's context window. */
+  context?: { used: number; window: number };
+  permissions?: AgentPermissions;
+}
+
 export interface TranscriptResponse {
   /** "claude" or "codex"; null when the conversation can't be read (see `reason`). */
   source: "claude" | "codex" | null;
   sessionId: string | null;
   items: TranscriptItem[];
+  /** Fields found in this read only: merge them over the previous ones, or replace them on `reset`. */
+  meta: AgentMeta;
   /** Pass back as `after` to get only newer items. */
   cursor: number;
   /** True when this is a full (re)load: replace the items instead of appending. */

@@ -1,0 +1,64 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta
+      http-equiv="Content-Security-Policy"
+      content="default-src 'self'; connect-src http: ws:; img-src 'self' data: blob:; style-src 'self'"
+    />
+    <title>HerdrBot</title>
+    <link rel="stylesheet" href="style.css" />
+  </head>
+  <body>
+    <button id="notch" class="notch" aria-label="Open HerdrBot">
+      <span class="notch-dot"></span>
+      <span id="notch-count" class="notch-count"></span>
+    </button>
+
+    <main id="panel" class="panel" aria-hidden="true">
+      <header class="bar">
+        <button id="back" class="icon" hidden aria-label="Back">‹</button>
+        <div class="bar-title">
+          <strong id="title">HerdrBot</strong>
+          <span id="subtitle" class="muted"></span>
+        </div>
+        <button id="open-app" class="icon" aria-label="Open in app" title="Open in the full app">⤢</button>
+        <button id="close" class="icon" aria-label="Close" title="Close (quit: Ctrl/Cmd+Q)">×</button>
+      </header>
+
+      <section id="list-view" class="view">
+        <div id="machines" class="machines"></div>
+        <ul id="agents" class="agents"></ul>
+        <p id="empty" class="empty" hidden>No agents are running.</p>
+      </section>
+
+      <section id="agent-view" class="view" hidden>
+        <pre id="output" class="output"></pre>
+        <div class="keys">
+          <button data-keys="enter" title="Confirm the selected choice">Enter</button>
+          <button data-keys="1">1</button>
+          <button data-keys="2">2</button>
+          <button data-keys="3">3</button>
+          <button data-keys="esc" title="Cancel or interrupt">Esc</button>
+          <button data-keys="ctrl+c" class="danger" title="Send Ctrl+C">^C</button>
+        </div>
+        <div id="attachment" class="attachment" hidden>
+          <img id="attachment-img" alt="" />
+          <span id="attachment-name" class="muted"></span>
+          <button id="attachment-clear" class="icon" aria-label="Remove image">×</button>
+        </div>
+        <form id="composer" class="composer">
+          <label class="icon attach" title="Attach an image">
+            ＋<input id="file" type="file" accept="image/*" hidden />
+          </label>
+          <textarea id="input" rows="1" placeholder="Reply to the agent…"></textarea>
+          <button type="submit" class="send" aria-label="Send">↑</button>
+        </form>
+      </section>
+
+      <div id="toast" class="toast" hidden></div>
+    </main>
+
+    <script type="module" src="app.js"></script>
+  </body>
+</html>

@@ -1,0 +1,69 @@
+<!doctype html>
+<html lang="en">
+  <head>
+    <meta charset="utf-8" />
+    <meta http-equiv="Content-Security-Policy" content="default-src 'self'; style-src 'self'" />
+    <title>Set up HerdrBot</title>
+    <link rel="stylesheet" href="onboarding.css" />
+  </head>
+  <body>
+    <main>
+      <!-- Step 1: where does the server run? -->
+      <section id="welcome" class="step">
+        <h1>Welcome to HerdrBot</h1>
+        <p class="lead">
+          HerdrBot shows every coding agent you run in Herdr, on all your computers, in one place. You can
+          read them, answer them and send them images.
+        </p>
+        <h2>Where does Herdr run?</h2>
+        <div class="choices">
+          <button class="choice" data-mode="local">
+            <strong>On this computer</strong>
+            <span>HerdrBot checks Herdr here and starts its server on this computer.</span>
+          </button>
+          <button class="choice" data-mode="remote">
+            <strong>On another computer</strong>
+            <span>Connect to a HerdrBot server that already runs on another computer, over Tailscale.</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Step 2a: this computer -->
+      <section id="local" class="step" hidden>
+        <button class="link back">‹ Back</button>
+        <h1>Set up this computer</h1>
+        <p class="lead">Fix the items with a button. Items marked “optional” can wait.</p>
+        <ol id="checks" class="checks"></ol>
+        <pre id="log" class="log" hidden></pre>
+        <footer>
+          <button id="recheck" class="secondary">Check again</button>
+          <button id="finish-local" class="primary" disabled>Start HerdrBot</button>
+        </footer>
+      </section>
+
+      <!-- Step 2b: another computer -->
+      <section id="remote" class="step" hidden>
+        <button class="link back">‹ Back</button>
+        <h1>Connect to another computer</h1>
+        <p class="lead">
+          On the computer that runs the server, find the token in
+          <code>~/.config/herdr-bot/config.json</code>. Use that computer's Tailscale IP address.
+        </p>
+        <label>
+          Server URL
+          <input id="remote-url" type="url" placeholder="http://100.x.y.z:7787" spellcheck="false" />
+        </label>
+        <label>
+          Token
+          <input id="remote-token" type="password" spellcheck="false" />
+        </label>
+        <div id="remote-result" class="result" hidden></div>
+        <footer>
+          <button id="test-remote" class="secondary">Test connection</button>
+          <button id="finish-remote" class="primary" disabled>Start HerdrBot</button>
+        </footer>
+      </section>
+    </main>
+    <script type="module" src="onboarding.js"></script>
+  </body>
+</html>

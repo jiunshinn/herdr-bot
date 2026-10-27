@@ -1,0 +1,10 @@
+{
+  "name": "herdr-bot",
+  "private": true,
+  "workspaces": ["packages/*", "apps/*"],
+  "scripts": {
+    "server": "bun run --cwd apps/server start",
+    "desktop": "bun run --cwd apps/desktop start",
+    "typecheck": "bun run --cwd apps/server typecheck"
+  }
+}

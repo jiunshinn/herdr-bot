@@ -4,6 +4,7 @@ import { type Api, useOutput, useTranscript } from "../api";
 import { kindLabel, machineLabel, STATUS_LABEL } from "../util";
 import { Chat } from "./Chat";
 import { Composer } from "./Composer";
+import { QuestionCard } from "./QuestionCard";
 import { StatusLine } from "./StatusLine";
 import { Terminal } from "./Terminal";
 
@@ -32,7 +33,7 @@ export function AgentView({ api, state, agent }: Props) {
   const showTerminal = tab === "terminal" || !chatAvailable;
   const machine = machineLabel(state, agent.machineId);
   const terminal = useOutput(api, agent.id, 300, showTerminal);
-  const blockedSnippet = useOutput(api, agent.id, 24, agent.status === "blocked" && !showTerminal);
+  const blockedPane = useOutput(api, agent.id, 40, agent.status === "blocked" && !showTerminal);
 
   useEffect(() => setTab("chat"), [agent.id]);
 
@@ -105,17 +106,12 @@ export function AgentView({ api, state, agent }: Props) {
       )}
 
       {agent.status === "blocked" && (
-        <div className="banner blocked">
-          <div className="banner-title">{kindLabel(agent.kind)} needs your answer</div>
-          {!showTerminal && blockedSnippet && <Terminal className="snippet" text={lastLines(blockedSnippet, 14)} />}
-          <div className="choice-keys">
-            <button onClick={() => keys(["1"])}>1</button>
-            <button onClick={() => keys(["2"])}>2</button>
-            <button onClick={() => keys(["3"])}>3</button>
-            <button onClick={() => keys(["enter"])}>Enter</button>
-            <button onClick={() => keys(["esc"])}>Esc</button>
-          </div>
-        </div>
+        <QuestionCard
+          title={`${kindLabel(agent.kind)} needs your answer`}
+          pane={showTerminal ? terminal : blockedPane}
+          canShowPane={!showTerminal}
+          onKeys={keys}
+        />
       )}
 
       {agent.status === "working" && !showTerminal && (
@@ -130,7 +126,7 @@ export function AgentView({ api, state, agent }: Props) {
       {toast && <div className="toast">{toast}</div>}
 
       <Composer
-        placeholder={agent.status === "blocked" ? "Answer with the buttons above" : `Message ${agent.title}`}
+        placeholder={agent.status === "blocked" ? "Choose an option above to continue" : `Message ${agent.title}`}
         disabled={agent.status === "blocked"}
         droppedImage={dropped}
         onConsumeDrop={consumeDrop}
@@ -138,8 +134,4 @@ export function AgentView({ api, state, agent }: Props) {
       />
     </section>
   );
-}
-
-function lastLines(text: string, n: number): string {
-  return text.split("\n").slice(-n).join("\n");
 }
